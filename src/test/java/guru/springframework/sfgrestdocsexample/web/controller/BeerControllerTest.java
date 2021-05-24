@@ -27,6 +27,8 @@ import static org.mockito.BDDMockito.given;
 // needed for Rest documentation
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +61,18 @@ class BeerControllerTest {
                         ),
                         requestParameters(
                                 parameterWithName("iscold").description("Is Beer Cold Query param")
+                        ),
+                        responseFields(
+                                fieldWithPath("id").description("Id of beer"),
+                                fieldWithPath("version").description("Version number"),
+                                fieldWithPath("createdDate").description("The created date"),
+                                fieldWithPath("lastModifiedDate").description("The last modified " +
+                                        "date"),
+                                fieldWithPath("beerName").description("The beer name"),
+                                fieldWithPath("beerStyle").description("The beer style"),
+                                fieldWithPath("upc").description("The upc code"),
+                                fieldWithPath("price").description("The beer price"),
+                                fieldWithPath("quantityOnHand").description("Quantity on hand")
                         )
                 ));
     }
