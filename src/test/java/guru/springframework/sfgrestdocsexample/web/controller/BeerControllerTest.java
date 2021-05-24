@@ -12,10 +12,12 @@ import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDoc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.restdocs.constraints.ConstraintDescriptions;
+import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -23,16 +25,15 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-//import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-// needed for Rest documentation
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
+import static org.springframework.restdocs.snippet.Attributes.key;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(RestDocumentationExtension.class)
-@AutoConfigureRestDocs
+@AutoConfigureRestDocs(uriScheme="http", uriHost = "nash-virtualbox", uriPort = 80)
 @WebMvcTest(BeerController.class)
 @ComponentScan(basePackages = "guru.springframework.sfgrestdocsexample.web.mappers")
 class BeerControllerTest {
@@ -49,13 +50,12 @@ class BeerControllerTest {
     @Test
     void getBeerById() throws Exception {
         given(beerRepository.findById(any())).willReturn(Optional.of(Beer.builder().build()));
-
         mockMvc.perform(get("/api/v1/beer/{beerId}", UUID.randomUUID().toString())
                 .param("iscold", "yes")
                 .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 // used by Spring MVC Rest docs
-                .andDo(document("v1/beer", pathParameters(
+                .andDo(document("v1/beer-get-by-id", pathParameters(
                         parameterWithName("beerId").description("UUID of desired beer to get.")
                         ),
                         requestParameters(
@@ -78,41 +78,41 @@ class BeerControllerTest {
 
     @Test
     void saveNewBeer() throws Exception {
-        BeerDto beerDto =  getValidBeerDto();
+        BeerDto beerDto = getValidBeerDto();
         String beerDtoJson = objectMapper.writeValueAsString(beerDto);
+
+        ConstrainedFields fields = new ConstrainedFields(BeerDto.class);
 
         mockMvc.perform(post("/api/v1/beer/")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(beerDtoJson))
                 .andExpect(status().isCreated())
-                .andDo(document("v1/beer",
+                .andDo(document("v1/beer-save",
                         // using Spring Rest Docs you will get code duplication
                         requestFields(
-                                fieldWithPath("id").ignored(),
-                                fieldWithPath("version").ignored(),
-                                fieldWithPath("createdDate").ignored(),
-                                fieldWithPath("lastModifiedDate").ignored(),
-                                fieldWithPath("beerName").description("The beer name"),
-                                fieldWithPath("beerStyle").description("The beer style"),
-                                fieldWithPath("upc").description("The upc code"),
-                                fieldWithPath("price").description("The beer price"),
-                                fieldWithPath("quantityOnHand").ignored()
-
+                                fields.withPath("id").ignored(),
+                                fields.withPath("version").ignored(),
+                                fields.withPath("createdDate").ignored(),
+                                fields.withPath("lastModifiedDate").ignored(),
+                                fields.withPath("beerName").description("The beer name"),
+                                fields.withPath("beerStyle").description("The beer style"),
+                                fields.withPath("upc").description("The upc code"),
+                                fields.withPath("price").description("The beer price"),
+                                fields.withPath("quantityOnHand").ignored()
                         )));
     }
 
     @Test
     void updateBeerById() throws Exception {
-        BeerDto beerDto =  getValidBeerDto();
+        BeerDto beerDto = getValidBeerDto();
         String beerDtoJson = objectMapper.writeValueAsString(beerDto);
-
         mockMvc.perform(put("/api/v1/beer/" + UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(beerDtoJson))
                 .andExpect(status().isNoContent());
     }
 
-    BeerDto getValidBeerDto(){
+    BeerDto getValidBeerDto() {
         return BeerDto.builder()
                 .beerName("Nice Ale")
                 .beerStyle(BeerStyleEnum.ALE)
@@ -120,6 +120,21 @@ class BeerControllerTest {
                 .upc(123123123123L)
                 .build();
 
+    }
+
+    private static class ConstrainedFields {
+
+        private final ConstraintDescriptions constraintDescriptions;
+
+        ConstrainedFields(Class<?> input) {
+            this.constraintDescriptions = new ConstraintDescriptions(input);
+        }
+
+        private FieldDescriptor withPath(String path) {
+            return fieldWithPath(path).attributes(key("constraints").value(StringUtils
+                    .collectionToDelimitedString(this.constraintDescriptions
+                            .descriptionsForProperty(path), ". ")));
+        }
     }
 
 }
